@@ -10,7 +10,7 @@ export class CreateProductDto {
   @ApiProperty({ description: 'Precio del producto', minimum: 1, maximum: 100000 })
   @IsNumber()
   @Min(1)
-  @Max(100000) // Cambiado de 100 a 100000 para permitir precios más reales
+  @Max(100000)
   @Transform(({ value }) => parseFloat(value))
   price: number;
 
@@ -29,7 +29,8 @@ export class CreateProductDto {
     format: 'binary', 
     description: 'Imagen del producto' 
   })
-  image?: Express.Multer.File;
+  @IsOptional()
+  image?: any; // Cambiamos a any para evitar problemas de validación
 }
 
 export class UpdateProductDto {
@@ -45,7 +46,7 @@ export class UpdateProductDto {
   @ApiProperty({ description: 'Precio del producto', minimum: 1, maximum: 100000 })
   @IsNumber()
   @Min(1)
-  @Max(100000) // Cambiado de 100 a 100000
+  @Max(100000)
   @Transform(({ value }) => parseFloat(value))
   price: number;
 
@@ -64,7 +65,8 @@ export class UpdateProductDto {
     format: 'binary', 
     description: 'Imagen del producto' 
   })
-  image?: Express.Multer.File;
+  @IsOptional()
+  image?: any; // Cambiamos a any para evitar problemas de validación
 
   @ApiPropertyOptional({ description: 'URL de la imagen actual' })
   @IsOptional()
