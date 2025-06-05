@@ -50,8 +50,8 @@ async function bootstrap() {
   });
 
   // Servir archivos estáticos
-  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
-    prefix: '/ProductImages/',
+  app.useStaticAssets(join(__dirname, '..', 'uploads', 'ProductImages'), {
+    prefix: '/ProductImages',
   });
 
   const port = configService.get('PORT') || 3003;
