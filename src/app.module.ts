@@ -1,10 +1,9 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MulterModule } from '@nestjs/platform-express';
 import { ProductModule } from './product/product.module';
 import { AuthModule } from './auth/auth.module';
-import { databaseConfig } from './config/database.config';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -16,8 +15,21 @@ import { v4 as uuidv4 } from 'uuid';
       envFilePath: '.env',
     }),
     TypeOrmModule.forRootAsync({
-      useFactory: databaseConfig,
-      inject: [],
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        type: 'postgres',
+        host: configService.get('DB_HOST'),
+        port: parseInt(configService.get('DB_PORT') || '5432'),
+        username: configService.get('DB_USERNAME'),
+        password: configService.get('DB_PASSWORD'),
+        database: configService.get('DB_NAME'),
+        entities: [__dirname + '/**/*.entity{.ts,.js}'],
+        synchronize: false, // false para Supabase
+        ssl: {
+          rejectUnauthorized: false
+        },
+      }),
     }),
     MulterModule.register({
       storage: diskStorage({

@@ -55,7 +55,7 @@ async function bootstrap() {
   });
 
   const port = configService.get('PORT') || 3003;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   
   console.log(`Microservicio de productos ejecutándose en el puerto ${port}`);
   console.log(`Swagger disponible en: http://localhost:${port}/api`);
