@@ -11,5 +11,7 @@ export const databaseConfig = (): TypeOrmModuleOptions => ({
   entities: [Product],
   synchronize: process.env.NODE_ENV === 'development',
   logging: process.env.NODE_ENV === 'development',
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  ssl: process.env.DB_HOST?.includes('supabase.com') 
+    ? { rejectUnauthorized: false } 
+    : false, // ⬅️ CAMBIO: SSL si es Supabase
 });
