@@ -1,21 +1,20 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import * as fs from 'fs';
 import * as path from 'path';
-import { Product } from '../entities/product.entity';
+import { Product, ProductDocument } from '../entities/product.schema';
 import { CreateProductDto, UpdateProductDto, ProductDto, ResponseDto } from '../dto/product.dto';
 
 @Injectable()
 export class ProductService {
   constructor(
-    @InjectRepository(Product)
-    private readonly productRepository: Repository<Product>,
+    @InjectModel(Product.name) private readonly productModel: Model<ProductDocument>,
   ) {}
 
   async getAllProducts(): Promise<ResponseDto<ProductDto[]>> {
     try {
-      const products = await this.productRepository.find();
+      const products = await this.productModel.find().exec();
       const productDtos = products.map(product => this.mapToProductDto(product));
       
       return new ResponseDto(productDtos, true, '');
@@ -24,16 +23,13 @@ export class ProductService {
     }
   }
 
-  async getProductById(id: number): Promise<ResponseDto<ProductDto>> {
+  async getProductById(id: string): Promise<ResponseDto<ProductDto>> {
     try {
-      const product = await this.productRepository.findOne({
-        where: { productId: id }
-      });
+      const product = await this.productModel.findById(id).exec();
 
       if (!product) {
-        // Retornamos un ProductDto vacío cuando no se encuentra
         const emptyProduct = new ProductDto();
-        emptyProduct.productId = 0;
+        emptyProduct.productId = '';
         emptyProduct.name = '';
         emptyProduct.price = 0;
         emptyProduct.description = '';
@@ -48,7 +44,7 @@ export class ProductService {
       return new ResponseDto(productDto, true, '');
     } catch (error) {
       const emptyProduct = new ProductDto();
-      emptyProduct.productId = 0;
+      emptyProduct.productId = '';
       emptyProduct.name = '';
       emptyProduct.price = 0;
       emptyProduct.description = '';
@@ -63,18 +59,21 @@ export class ProductService {
   async createProduct(createProductDto: CreateProductDto, file?: Express.Multer.File): Promise<ResponseDto<ProductDto>> {
     try {
       // Crear el producto sin la imagen primero
-      const product = new Product();
-      product.name = createProductDto.name;
-      product.price = createProductDto.price;
-      product.description = createProductDto.description || '';
-      product.categoryName = createProductDto.categoryName || '';
+      const productData = {
+        name: createProductDto.name,
+        price: createProductDto.price,
+        description: createProductDto.description || '',
+        categoryName: createProductDto.categoryName || '',
+        imageUrl: 'https://placehold.co/600x400',
+        imageLocalPath: '',
+      };
       
       // Guardar el producto para obtener el ID
-      const savedProduct = await this.productRepository.save(product);
+      const savedProduct = await this.productModel.create(productData);
 
       // Manejar la imagen si existe
       if (file) {
-        const fileName = `${savedProduct.productId}${path.extname(file.originalname)}`;
+        const fileName = `${savedProduct._id}${path.extname(file.originalname)}`;
         const uploadDir = path.join(process.cwd(), 'uploads', 'ProductImages');
         const filePath = path.join(uploadDir, fileName);
 
@@ -90,17 +89,14 @@ export class ProductService {
         savedProduct.imageUrl = `/ProductImages/${fileName}`;
         savedProduct.imageLocalPath = `uploads/ProductImages/${fileName}`;
         
-        await this.productRepository.save(savedProduct);
-      } else {
-        savedProduct.imageUrl = 'https://placehold.co/600x400';
-        await this.productRepository.save(savedProduct);
+        await savedProduct.save();
       }
 
       const productDto = this.mapToProductDto(savedProduct);
       return new ResponseDto(productDto, true, '');
     } catch (error) {
       const emptyProduct = new ProductDto();
-      emptyProduct.productId = 0;
+      emptyProduct.productId = '';
       emptyProduct.name = '';
       emptyProduct.price = 0;
       emptyProduct.description = '';
@@ -112,15 +108,13 @@ export class ProductService {
     }
   }
 
-  async updateProduct(updateProductDto: UpdateProductDto, file?: Express.Multer.File): Promise<ResponseDto<ProductDto>> {
+  async updateProduct(id: string, updateProductDto: UpdateProductDto, file?: Express.Multer.File): Promise<ResponseDto<ProductDto>> {
     try {
-      const product = await this.productRepository.findOne({
-        where: { productId: updateProductDto.productId }
-      });
+      const product = await this.productModel.findById(id).exec();
 
       if (!product) {
         const emptyProduct = new ProductDto();
-        emptyProduct.productId = 0;
+        emptyProduct.productId = '';
         emptyProduct.name = '';
         emptyProduct.price = 0;
         emptyProduct.description = '';
@@ -148,7 +142,7 @@ export class ProductService {
           }
         }
 
-        const fileName = `${product.productId}${path.extname(file.originalname)}`;
+        const fileName = `${product._id}${path.extname(file.originalname)}`;
         const uploadDir = path.join(process.cwd(), 'uploads', 'ProductImages');
         const filePath = path.join(uploadDir, fileName);
 
@@ -164,13 +158,13 @@ export class ProductService {
         product.imageLocalPath = `uploads/ProductImages/${fileName}`;
       }
 
-      const savedProduct = await this.productRepository.save(product);
+      const savedProduct = await product.save();
       const productDto = this.mapToProductDto(savedProduct);
       
       return new ResponseDto(productDto, true, '');
     } catch (error) {
       const emptyProduct = new ProductDto();
-      emptyProduct.productId = 0;
+      emptyProduct.productId = '';
       emptyProduct.name = '';
       emptyProduct.price = 0;
       emptyProduct.description = '';
@@ -182,11 +176,9 @@ export class ProductService {
     }
   }
 
-  async deleteProduct(id: number): Promise<ResponseDto<string>> {
+  async deleteProduct(id: string): Promise<ResponseDto<string>> {
     try {
-      const product = await this.productRepository.findOne({
-        where: { productId: id }
-      });
+      const product = await this.productModel.findById(id).exec();
 
       if (!product) {
         return new ResponseDto('', false, 'Producto no encontrado');
@@ -201,7 +193,7 @@ export class ProductService {
         }
       }
 
-      await this.productRepository.remove(product);
+      await this.productModel.findByIdAndDelete(id).exec();
       
       return new ResponseDto('Producto eliminado correctamente', true, '');
     } catch (error) {
@@ -209,9 +201,9 @@ export class ProductService {
     }
   }
 
-  private mapToProductDto(product: Product): ProductDto {
+  private mapToProductDto(product: ProductDocument): ProductDto {
     const dto = new ProductDto();
-    dto.productId = product.productId;
+    dto.productId = product.id;
     dto.name = product.name;
     dto.price = Number(product.price);
     dto.description = product.description || '';

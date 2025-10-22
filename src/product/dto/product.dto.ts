@@ -30,15 +30,10 @@ export class CreateProductDto {
     description: 'Imagen del producto' 
   })
   @IsOptional()
-  image?: any; // Cambiamos a any para evitar problemas de validación
+  image?: any;
 }
 
 export class UpdateProductDto {
-  @ApiProperty({ description: 'ID del producto' })
-  @IsNumber()
-  @Transform(({ value }) => parseInt(value))
-  productId: number;
-
   @ApiProperty({ description: 'Nombre del producto' })
   @IsString()
   name: string;
@@ -66,7 +61,7 @@ export class UpdateProductDto {
     description: 'Imagen del producto' 
   })
   @IsOptional()
-  image?: any; // Cambiamos a any para evitar problemas de validación
+  image?: any;
 
   @ApiPropertyOptional({ description: 'URL de la imagen actual' })
   @IsOptional()
@@ -81,7 +76,7 @@ export class UpdateProductDto {
 
 export class ProductDto {
   @ApiProperty({ description: 'ID del producto' })
-  productId: number;
+  productId: string;
 
   @ApiProperty({ description: 'Nombre del producto' })
   name: string;

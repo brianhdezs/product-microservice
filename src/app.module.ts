@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { MongooseModule } from '@nestjs/mongoose';
 import { MulterModule } from '@nestjs/platform-express';
 import { ProductModule } from './product/product.module';
 import { AuthModule } from './auth/auth.module';
@@ -14,23 +14,15 @@ import { v4 as uuidv4 } from 'uuid';
       isGlobal: true,
       envFilePath: '.env',
     }),
-    TypeOrmModule.forRootAsync({
+    
+    MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get('DB_HOST'),
-        port: parseInt(configService.get('DB_PORT') || '5432'),
-        username: configService.get('DB_USERNAME'),
-        password: configService.get('DB_PASSWORD'),
-        database: configService.get('DB_NAME'),
-        entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: false, // false para Supabase
-        ssl: {
-          rejectUnauthorized: false
-        },
+        uri: configService.get('MONGODB_URI'),
       }),
     }),
+    
     MulterModule.register({
       storage: diskStorage({
         destination: './uploads/ProductImages',
@@ -52,6 +44,7 @@ import { v4 as uuidv4 } from 'uuid';
         fileSize: 5 * 1024 * 1024, // 5MB
       },
     }),
+    
     ProductModule,
     AuthModule,
   ],

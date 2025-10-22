@@ -6,7 +6,6 @@ import {
   Delete,
   Body,
   Param,
-  ParseIntPipe,
   UseInterceptors,
   UploadedFile,
   HttpCode,
@@ -52,12 +51,12 @@ export class ProductController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Obtener producto por ID' })
-  @ApiParam({ name: 'id', description: 'ID del producto', type: 'number' })
+  @ApiParam({ name: 'id', description: 'ID del producto', type: 'string' })
   @ApiResponse({ 
     status: 200, 
     description: 'Producto encontrado'
   })
-  async getById(@Param('id', ParseIntPipe) id: number): Promise<ResponseDto<ProductDto>> {
+  async getById(@Param('id') id: string): Promise<ResponseDto<ProductDto>> {
     return await this.productService.getProductById(id);
   }
 
@@ -104,7 +103,7 @@ export class ProductController {
     return await this.productService.createProduct(cleanDto, file);
   }
 
-  @Put()
+  @Put(':id')
   @UseInterceptors(FileInterceptor('image', {
     storage: diskStorage({
       destination: './uploads/temp',
@@ -130,12 +129,14 @@ export class ProductController {
     },
   }))
   @ApiOperation({ summary: 'Actualizar un producto existente' })
+  @ApiParam({ name: 'id', description: 'ID del producto', type: 'string' })
   @ApiConsumes('multipart/form-data')
   @ApiResponse({ 
     status: 200, 
     description: 'Producto actualizado exitosamente'
   })
   async put(
+    @Param('id') id: string,
     @Body() updateProductDto: UpdateProductDto,
     @UploadedFile() file?: Express.Multer.File,
   ): Promise<ResponseDto<ProductDto>> {
@@ -143,17 +144,17 @@ export class ProductController {
     const cleanDto = { ...updateProductDto };
     delete cleanDto.image;
     
-    return await this.productService.updateProduct(cleanDto, file);
+    return await this.productService.updateProduct(id, cleanDto, file);
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar un producto' })
-  @ApiParam({ name: 'id', description: 'ID del producto', type: 'number' })
+  @ApiParam({ name: 'id', description: 'ID del producto', type: 'string' })
   @ApiResponse({ 
     status: 200, 
     description: 'Producto eliminado exitosamente'
   })
-  async delete(@Param('id', ParseIntPipe) id: number): Promise<ResponseDto<string>> {
+  async delete(@Param('id') id: string): Promise<ResponseDto<string>> {
     return await this.productService.deleteProduct(id);
   }
 }
