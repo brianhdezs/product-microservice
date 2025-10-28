@@ -39,17 +39,18 @@ export class ProductController {
     return await this.productService.getAllProducts();
   }
 
-  @Get()
-  @ApiOperation({ summary: 'Obtener todos los productos (ruta alternativa)' })
+  @Get('user/:userId')  // ⬅️ DEBE IR ANTES DE @Get(':id')
+  @ApiOperation({ summary: 'Obtener productos por ID de usuario' })
+  @ApiParam({ name: 'userId', description: 'ID del usuario', type: 'string' })
   @ApiResponse({ 
     status: 200, 
-    description: 'Lista de productos obtenida exitosamente'
+    description: 'Lista de productos del usuario obtenida exitosamente'
   })
-  async get(): Promise<ResponseDto<ProductDto[]>> {
-    return await this.productService.getAllProducts();
+  async getByUserId(@Param('userId') userId: string): Promise<ResponseDto<ProductDto[]>> {
+    return await this.productService.getProductsByUserId(userId);
   }
 
-  @Get(':id')
+  @Get(':id')  // ⬅️ ESTE DEBE IR DESPUÉS
   @ApiOperation({ summary: 'Obtener producto por ID' })
   @ApiParam({ name: 'id', description: 'ID del producto', type: 'string' })
   @ApiResponse({ 
@@ -58,6 +59,16 @@ export class ProductController {
   })
   async getById(@Param('id') id: string): Promise<ResponseDto<ProductDto>> {
     return await this.productService.getProductById(id);
+  }
+
+  @Get()  // ⬅️ O mueve este al final
+  @ApiOperation({ summary: 'Obtener todos los productos (ruta alternativa)' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Lista de productos obtenida exitosamente'
+  })
+  async get(): Promise<ResponseDto<ProductDto[]>> {
+    return await this.productService.getAllProducts();
   }
 
   @Post()
@@ -96,7 +107,6 @@ export class ProductController {
     @Body() createProductDto: CreateProductDto,
     @UploadedFile() file?: Express.Multer.File,
   ): Promise<ResponseDto<ProductDto>> {
-    // Limpiar el campo image del DTO antes de procesar
     const cleanDto = { ...createProductDto };
     delete cleanDto.image;
     
@@ -140,7 +150,6 @@ export class ProductController {
     @Body() updateProductDto: UpdateProductDto,
     @UploadedFile() file?: Express.Multer.File,
   ): Promise<ResponseDto<ProductDto>> {
-    // Limpiar el campo image del DTO antes de procesar
     const cleanDto = { ...updateProductDto };
     delete cleanDto.image;
     

@@ -31,6 +31,11 @@ export class CreateProductDto {
   })
   @IsOptional()
   image?: any;
+
+  // Agregar userId (se obtendrá del token JWT)
+  @ApiProperty({ description: 'ID del usuario que crea el producto' })
+  @IsString()
+  userId: string;
 }
 
 export class UpdateProductDto {
@@ -95,6 +100,9 @@ export class ProductDto {
 
   @ApiProperty({ description: 'Ruta local de la imagen' })
   imageLocalPath: string;
+
+  @ApiProperty({ description: 'ID del usuario propietario' })
+  userId: string;
 }
 
 export class ResponseDto<T = any> {

@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 export type ProductDocument = Product & Document;
 
@@ -22,6 +22,12 @@ export class Product {
 
   @Prop()
   imageLocalPath: string;
+
+  @Prop({ type: Types.ObjectId, required: true })
+  userId: Types.ObjectId; // ID del usuario que creó el producto
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);
+
+// Índice para búsquedas eficientes por usuario
+ProductSchema.index({ userId: 1 });

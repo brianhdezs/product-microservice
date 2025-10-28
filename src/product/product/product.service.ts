@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Product, ProductDocument } from '../entities/product.schema';
@@ -23,6 +23,21 @@ export class ProductService {
     }
   }
 
+  async getProductsByUserId(userId: string): Promise<ResponseDto<ProductDto[]>> {
+    try {
+      const products = await this.productModel
+        .find({ userId: new Types.ObjectId(userId) })
+        .sort({ createdAt: -1 }) // Ordenar por más recientes primero
+        .exec();
+      
+      const productDtos = products.map(product => this.mapToProductDto(product));
+      
+      return new ResponseDto(productDtos, true, '');
+    } catch (error) {
+      return new ResponseDto([], false, error.message);
+    }
+  }
+
   async getProductById(id: string): Promise<ResponseDto<ProductDto>> {
     try {
       const product = await this.productModel.findById(id).exec();
@@ -36,6 +51,7 @@ export class ProductService {
         emptyProduct.categoryName = '';
         emptyProduct.imageUrl = '';
         emptyProduct.imageLocalPath = '';
+        emptyProduct.userId = '';
         
         return new ResponseDto(emptyProduct, false, 'Producto no encontrado');
       }
@@ -51,6 +67,7 @@ export class ProductService {
       emptyProduct.categoryName = '';
       emptyProduct.imageUrl = '';
       emptyProduct.imageLocalPath = '';
+      emptyProduct.userId = '';
       
       return new ResponseDto(emptyProduct, false, error.message);
     }
@@ -66,6 +83,7 @@ export class ProductService {
         categoryName: createProductDto.categoryName || '',
         imageUrl: 'https://placehold.co/600x400',
         imageLocalPath: '',
+        userId: new Types.ObjectId(createProductDto.userId),
       };
       
       // Guardar el producto para obtener el ID
@@ -103,6 +121,7 @@ export class ProductService {
       emptyProduct.categoryName = '';
       emptyProduct.imageUrl = '';
       emptyProduct.imageLocalPath = '';
+      emptyProduct.userId = '';
       
       return new ResponseDto(emptyProduct, false, error.message);
     }
@@ -121,6 +140,7 @@ export class ProductService {
         emptyProduct.categoryName = '';
         emptyProduct.imageUrl = '';
         emptyProduct.imageLocalPath = '';
+        emptyProduct.userId = '';
         
         return new ResponseDto(emptyProduct, false, 'Producto no encontrado');
       }
@@ -171,6 +191,7 @@ export class ProductService {
       emptyProduct.categoryName = '';
       emptyProduct.imageUrl = '';
       emptyProduct.imageLocalPath = '';
+      emptyProduct.userId = '';
       
       return new ResponseDto(emptyProduct, false, error.message);
     }
@@ -203,13 +224,16 @@ export class ProductService {
 
   private mapToProductDto(product: ProductDocument): ProductDto {
     const dto = new ProductDto();
-    dto.productId = product.id;
+    const id = (product._id as Types.ObjectId | string);
+    dto.productId = id.toString();
     dto.name = product.name;
     dto.price = Number(product.price);
     dto.description = product.description || '';
     dto.categoryName = product.categoryName || '';
     dto.imageUrl = product.imageUrl || '';
     dto.imageLocalPath = product.imageLocalPath || '';
+    const userId = (product.userId as Types.ObjectId | string);
+    dto.userId = userId.toString();
     return dto;
   }
 }
