@@ -1,10 +1,22 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import * as fs from 'fs';
 import * as path from 'path';
+import axios from 'axios';
 import { Product, ProductDocument } from '../entities/product.schema';
-import { CreateProductDto, UpdateProductDto, ProductDto, ResponseDto } from '../dto/product.dto';
+import {
+  CreateProductDto,
+  UpdateProductDto,
+  ProductDto,
+  ResponseDto,
+} from '../dto/product.dto';
+
+// 👇 Tipo extendido con los datos del vendedor
+type ProductWithUser = ProductDto & {
+  userName: string;
+  userPhone: string;
+};
 
 @Injectable()
 export class ProductService {
@@ -12,70 +24,105 @@ export class ProductService {
     @InjectModel(Product.name) private readonly productModel: Model<ProductDocument>,
   ) {}
 
-  async getAllProducts(): Promise<ResponseDto<ProductDto[]>> {
+  // ============================================================
+  // Obtener datos de usuario desde el Auth Microservice
+  // ============================================================
+private async getUserData(userId: string): Promise<{ name: string; phone: string }> {
+  const AUTH_URL = process.env.AUTH_SERVICE_URL || 'https://auth-microservice-tfql.onrender.com';
+  try {
+    const response = await axios.get(`${AUTH_URL}/api/auth/public/${userId}`);
+    const user = response.data.result;
+
+    return {
+      name: user.username,
+      phone: user.phoneNumber || 'No disponible',
+    };
+  } catch (error) {
+    console.warn(`⚠️ No se pudo obtener usuario ${userId}:`, error.message);
+    return { name: 'Desconocido', phone: 'No disponible' };
+  }
+}
+
+
+
+  // ============================================================
+  // 🔹 GET ALL PRODUCTS
+  // ============================================================
+  async getAllProducts(): Promise<ResponseDto<ProductWithUser[]>> {
     try {
       const products = await this.productModel.find().exec();
-      const productDtos = products.map(product => this.mapToProductDto(product));
-      
-      return new ResponseDto(productDtos, true, '');
+      const result: ProductWithUser[] = [];
+
+      for (const product of products) {
+        const dto = this.mapToProductDto(product);
+        const userData = await this.getUserData(dto.userId);
+        result.push({ ...dto, userName: userData.name, userPhone: userData.phone });
+      }
+
+      return new ResponseDto<ProductWithUser[]>(result, true, '');
     } catch (error) {
-      return new ResponseDto([], false, error.message);
+      return new ResponseDto<ProductWithUser[]>([], false, error.message);
     }
   }
 
-  async getProductsByUserId(userId: string): Promise<ResponseDto<ProductDto[]>> {
+  // ============================================================
+  // 🔹 GET BY USER ID
+  // ============================================================
+  async getProductsByUserId(userId: string): Promise<ResponseDto<ProductWithUser[]>> {
     try {
       const products = await this.productModel
         .find({ userId: new Types.ObjectId(userId) })
-        .sort({ createdAt: -1 }) // Ordenar por más recientes primero
+        .sort({ createdAt: -1 })
         .exec();
-      
-      const productDtos = products.map(product => this.mapToProductDto(product));
-      
-      return new ResponseDto(productDtos, true, '');
-    } catch (error) {
-      return new ResponseDto([], false, error.message);
-    }
-  }
 
-  async getProductById(id: string): Promise<ResponseDto<ProductDto>> {
-    try {
-      const product = await this.productModel.findById(id).exec();
+      const result: ProductWithUser[] = [];
 
-      if (!product) {
-        const emptyProduct = new ProductDto();
-        emptyProduct.productId = '';
-        emptyProduct.name = '';
-        emptyProduct.price = 0;
-        emptyProduct.description = '';
-        emptyProduct.categoryName = '';
-        emptyProduct.imageUrl = '';
-        emptyProduct.imageLocalPath = '';
-        emptyProduct.userId = '';
-        
-        return new ResponseDto(emptyProduct, false, 'Producto no encontrado');
+      for (const product of products) {
+        const dto = this.mapToProductDto(product);
+        const userData = await this.getUserData(dto.userId);
+        result.push({ ...dto, userName: userData.name, userPhone: userData.phone });
       }
 
-      const productDto = this.mapToProductDto(product);
-      return new ResponseDto(productDto, true, '');
+      return new ResponseDto<ProductWithUser[]>(result, true, '');
     } catch (error) {
-      const emptyProduct = new ProductDto();
-      emptyProduct.productId = '';
-      emptyProduct.name = '';
-      emptyProduct.price = 0;
-      emptyProduct.description = '';
-      emptyProduct.categoryName = '';
-      emptyProduct.imageUrl = '';
-      emptyProduct.imageLocalPath = '';
-      emptyProduct.userId = '';
-      
-      return new ResponseDto(emptyProduct, false, error.message);
+      return new ResponseDto<ProductWithUser[]>([], false, error.message);
     }
   }
 
-  async createProduct(createProductDto: CreateProductDto, file?: Express.Multer.File): Promise<ResponseDto<ProductDto>> {
+  // ============================================================
+  // 🔹 GET PRODUCT BY ID
+  // ============================================================
+  async getProductById(id: string): Promise<ResponseDto<ProductWithUser>> {
     try {
-      // Crear el producto sin la imagen primero
+      const product = await this.productModel.findById(id).exec();
+      if (!product)
+        return new ResponseDto<ProductWithUser>(
+          undefined,
+          false,
+          'Producto no encontrado',
+        );
+
+      const dto = this.mapToProductDto(product);
+      const userData = await this.getUserData(dto.userId);
+
+      return new ResponseDto<ProductWithUser>(
+        { ...dto, userName: userData.name, userPhone: userData.phone },
+        true,
+        '',
+      );
+    } catch (error) {
+      return new ResponseDto<ProductWithUser>(undefined, false, error.message);
+    }
+  }
+
+  // ============================================================
+  // 🔹 CREATE PRODUCT
+  // ============================================================
+  async createProduct(
+    createProductDto: CreateProductDto,
+    file?: Express.Multer.File,
+  ): Promise<ResponseDto<ProductWithUser>> {
+    try {
       const productData = {
         name: createProductDto.name,
         price: createProductDto.price,
@@ -85,75 +132,58 @@ export class ProductService {
         imageLocalPath: '',
         userId: new Types.ObjectId(createProductDto.userId),
       };
-      
-      // Guardar el producto para obtener el ID
+
       const savedProduct = await this.productModel.create(productData);
 
-      // Manejar la imagen si existe
       if (file) {
         const fileName = `${savedProduct._id}${path.extname(file.originalname)}`;
         const uploadDir = path.join(process.cwd(), 'uploads', 'ProductImages');
         const filePath = path.join(uploadDir, fileName);
 
-        // Crear directorio si no existe
-        if (!fs.existsSync(uploadDir)) {
-          fs.mkdirSync(uploadDir, { recursive: true });
-        }
-
-        // Mover el archivo temporal al destino final
+        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
         fs.renameSync(file.path, filePath);
 
-        // Actualizar el producto con la información de la imagen
         savedProduct.imageUrl = `/ProductImages/${fileName}`;
         savedProduct.imageLocalPath = `uploads/ProductImages/${fileName}`;
-        
         await savedProduct.save();
       }
 
-      const productDto = this.mapToProductDto(savedProduct);
-      return new ResponseDto(productDto, true, '');
+      const dto = this.mapToProductDto(savedProduct);
+      const userData = await this.getUserData(dto.userId);
+
+      return new ResponseDto<ProductWithUser>(
+        { ...dto, userName: userData.name, userPhone: userData.phone },
+        true,
+        '',
+      );
     } catch (error) {
-      const emptyProduct = new ProductDto();
-      emptyProduct.productId = '';
-      emptyProduct.name = '';
-      emptyProduct.price = 0;
-      emptyProduct.description = '';
-      emptyProduct.categoryName = '';
-      emptyProduct.imageUrl = '';
-      emptyProduct.imageLocalPath = '';
-      emptyProduct.userId = '';
-      
-      return new ResponseDto(emptyProduct, false, error.message);
+      return new ResponseDto<ProductWithUser>(undefined, false, error.message);
     }
   }
 
-  async updateProduct(id: string, updateProductDto: UpdateProductDto, file?: Express.Multer.File): Promise<ResponseDto<ProductDto>> {
+  // ============================================================
+  // 🔹 UPDATE PRODUCT
+  // ============================================================
+  async updateProduct(
+    id: string,
+    updateProductDto: UpdateProductDto,
+    file?: Express.Multer.File,
+  ): Promise<ResponseDto<ProductWithUser>> {
     try {
       const product = await this.productModel.findById(id).exec();
+      if (!product)
+        return new ResponseDto<ProductWithUser>(
+          undefined,
+          false,
+          'Producto no encontrado',
+        );
 
-      if (!product) {
-        const emptyProduct = new ProductDto();
-        emptyProduct.productId = '';
-        emptyProduct.name = '';
-        emptyProduct.price = 0;
-        emptyProduct.description = '';
-        emptyProduct.categoryName = '';
-        emptyProduct.imageUrl = '';
-        emptyProduct.imageLocalPath = '';
-        emptyProduct.userId = '';
-        
-        return new ResponseDto(emptyProduct, false, 'Producto no encontrado');
-      }
-
-      // Actualizar campos básicos
       product.name = updateProductDto.name;
       product.price = updateProductDto.price;
       product.description = updateProductDto.description || '';
       product.categoryName = updateProductDto.categoryName || '';
 
-      // Manejar la imagen si se proporciona una nueva
       if (file) {
-        // Eliminar imagen anterior si existe
         if (product.imageLocalPath && fs.existsSync(product.imageLocalPath)) {
           try {
             fs.unlinkSync(product.imageLocalPath);
@@ -166,12 +196,7 @@ export class ProductService {
         const uploadDir = path.join(process.cwd(), 'uploads', 'ProductImages');
         const filePath = path.join(uploadDir, fileName);
 
-        // Crear directorio si no existe
-        if (!fs.existsSync(uploadDir)) {
-          fs.mkdirSync(uploadDir, { recursive: true });
-        }
-
-        // Mover el archivo temporal al destino final
+        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
         fs.renameSync(file.path, filePath);
 
         product.imageUrl = `/ProductImages/${fileName}`;
@@ -179,33 +204,28 @@ export class ProductService {
       }
 
       const savedProduct = await product.save();
-      const productDto = this.mapToProductDto(savedProduct);
-      
-      return new ResponseDto(productDto, true, '');
+      const dto = this.mapToProductDto(savedProduct);
+      const userData = await this.getUserData(dto.userId);
+
+      return new ResponseDto<ProductWithUser>(
+        { ...dto, userName: userData.name, userPhone: userData.phone },
+        true,
+        '',
+      );
     } catch (error) {
-      const emptyProduct = new ProductDto();
-      emptyProduct.productId = '';
-      emptyProduct.name = '';
-      emptyProduct.price = 0;
-      emptyProduct.description = '';
-      emptyProduct.categoryName = '';
-      emptyProduct.imageUrl = '';
-      emptyProduct.imageLocalPath = '';
-      emptyProduct.userId = '';
-      
-      return new ResponseDto(emptyProduct, false, error.message);
+      return new ResponseDto<ProductWithUser>(undefined, false, error.message);
     }
   }
 
+  // ============================================================
+  // 🔹 DELETE PRODUCT
+  // ============================================================
   async deleteProduct(id: string): Promise<ResponseDto<string>> {
     try {
       const product = await this.productModel.findById(id).exec();
+      if (!product)
+        return new ResponseDto<string>('', false, 'Producto no encontrado');
 
-      if (!product) {
-        return new ResponseDto('', false, 'Producto no encontrado');
-      }
-
-      // Eliminar imagen si existe
       if (product.imageLocalPath && fs.existsSync(product.imageLocalPath)) {
         try {
           fs.unlinkSync(product.imageLocalPath);
@@ -215,25 +235,25 @@ export class ProductService {
       }
 
       await this.productModel.findByIdAndDelete(id).exec();
-      
-      return new ResponseDto('Producto eliminado correctamente', true, '');
+      return new ResponseDto<string>('Producto eliminado correctamente', true, '');
     } catch (error) {
-      return new ResponseDto('', false, error.message);
+      return new ResponseDto<string>('', false, error.message);
     }
   }
 
+  // ============================================================
+  // 🔹 MAP PRODUCT → DTO
+  // ============================================================
   private mapToProductDto(product: ProductDocument): ProductDto {
     const dto = new ProductDto();
-    const id = (product._id as Types.ObjectId | string);
-    dto.productId = id.toString();
+    dto.productId = (product._id as Types.ObjectId).toString();
     dto.name = product.name;
     dto.price = Number(product.price);
     dto.description = product.description || '';
     dto.categoryName = product.categoryName || '';
     dto.imageUrl = product.imageUrl || '';
     dto.imageLocalPath = product.imageLocalPath || '';
-    const userId = (product.userId as Types.ObjectId | string);
-    dto.userId = userId.toString();
+    dto.userId = (product.userId as Types.ObjectId).toString();
     return dto;
   }
 }

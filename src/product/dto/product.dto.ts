@@ -24,10 +24,10 @@ export class CreateProductDto {
   @IsString()
   categoryName?: string;
 
-  @ApiPropertyOptional({ 
-    type: 'string', 
-    format: 'binary', 
-    description: 'Imagen del producto' 
+  @ApiPropertyOptional({
+    type: 'string',
+    format: 'binary',
+    description: 'Imagen del producto'
   })
   @IsOptional()
   image?: any;
@@ -60,10 +60,10 @@ export class UpdateProductDto {
   @IsString()
   categoryName?: string;
 
-  @ApiPropertyOptional({ 
-    type: 'string', 
-    format: 'binary', 
-    description: 'Imagen del producto' 
+  @ApiPropertyOptional({
+    type: 'string',
+    format: 'binary',
+    description: 'Imagen del producto'
   })
   @IsOptional()
   image?: any;
@@ -103,7 +103,15 @@ export class ProductDto {
 
   @ApiProperty({ description: 'ID del usuario propietario' })
   userId: string;
+
+  // NUEVOS CAMPOS (para incluir datos del vendedor)
+  @ApiPropertyOptional({ description: 'Nombre del usuario propietario' })
+  userName?: string;
+
+  @ApiPropertyOptional({ description: 'Teléfono del usuario propietario' })
+  userPhone?: string;
 }
+
 
 export class ResponseDto<T = any> {
   @ApiProperty({ description: 'Resultado de la operación' })
@@ -130,11 +138,11 @@ export class PagerDto {
   @Transform(({ value }) => parseInt(value) || 1)
   page?: number = 1;
 
-  @ApiPropertyOptional({ 
-    description: 'Registros por página', 
-    default: 10, 
-    minimum: 1, 
-    maximum: 50 
+  @ApiPropertyOptional({
+    description: 'Registros por página',
+    default: 10,
+    minimum: 1,
+    maximum: 50
   })
   @IsOptional()
   @IsNumber()
