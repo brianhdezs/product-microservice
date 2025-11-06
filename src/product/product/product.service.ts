@@ -11,6 +11,8 @@ import {
   ProductDto,
   ResponseDto,
 } from '../dto/product.dto';
+import { uploadToCloudinary } from '../utils/cloudinary.util';
+
 
 // 👇 Tipo extendido con los datos del vendedor
 type ProductWithUser = ProductDto & {
@@ -135,18 +137,14 @@ private async getUserData(userId: string): Promise<{ name: string; phone: string
 
       const savedProduct = await this.productModel.create(productData);
 
-      if (file) {
-        const fileName = `${savedProduct._id}${path.extname(file.originalname)}`;
-        const uploadDir = path.join(process.cwd(), 'uploads', 'ProductImages');
-        const filePath = path.join(uploadDir, fileName);
+if (file) {
+  const cloudinaryUrl = await uploadToCloudinary(file.path);
 
-        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-        fs.renameSync(file.path, filePath);
+  savedProduct.imageUrl = cloudinaryUrl; // ✅ ahora guarda la URL pública
+  savedProduct.imageLocalPath = ''; // opcional: ya no lo necesitas
+  await savedProduct.save();
+}
 
-        savedProduct.imageUrl = `/ProductImages/${fileName}`;
-        savedProduct.imageLocalPath = `uploads/ProductImages/${fileName}`;
-        await savedProduct.save();
-      }
 
       const dto = this.mapToProductDto(savedProduct);
       const userData = await this.getUserData(dto.userId);
@@ -182,26 +180,12 @@ private async getUserData(userId: string): Promise<{ name: string; phone: string
       product.price = updateProductDto.price;
       product.description = updateProductDto.description || '';
       product.categoryName = updateProductDto.categoryName || '';
+if (file) {
+  const cloudinaryUrl = await uploadToCloudinary(file.path);
+  product.imageUrl = cloudinaryUrl; // ✅ URL de Cloudinary
+  product.imageLocalPath = '';      // limpiar ruta local
+}
 
-      if (file) {
-        if (product.imageLocalPath && fs.existsSync(product.imageLocalPath)) {
-          try {
-            fs.unlinkSync(product.imageLocalPath);
-          } catch (err) {
-            console.warn('No se pudo eliminar la imagen anterior:', err.message);
-          }
-        }
-
-        const fileName = `${product._id}${path.extname(file.originalname)}`;
-        const uploadDir = path.join(process.cwd(), 'uploads', 'ProductImages');
-        const filePath = path.join(uploadDir, fileName);
-
-        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-        fs.renameSync(file.path, filePath);
-
-        product.imageUrl = `/ProductImages/${fileName}`;
-        product.imageLocalPath = `uploads/ProductImages/${fileName}`;
-      }
 
       const savedProduct = await product.save();
       const dto = this.mapToProductDto(savedProduct);
