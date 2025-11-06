@@ -138,13 +138,13 @@ export class ProductService {
 
       const savedProduct = await this.productModel.create(productData);
 
-      if (file) {
+    if (file) {
+        // Subir a Cloudinary una sola vez
         const cloudinaryUrl = await uploadToCloudinary(file.path);
         savedProduct.imageUrl = cloudinaryUrl;
-        savedProduct.imageLocalPath = '';
+        savedProduct.imageLocalPath = ''; // opcional
         await savedProduct.save();
       }
-
       const dto = this.mapToProductDto(savedProduct);
       const userData = await this.getUserData(dto.userId);
 
