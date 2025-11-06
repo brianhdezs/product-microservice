@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import * as fs from 'fs';
@@ -10,9 +10,9 @@ import {
   UpdateProductDto,
   ProductDto,
   ResponseDto,
+  VoteProductDto,
 } from '../dto/product.dto';
 import { uploadToCloudinary } from '../utils/cloudinary.util';
-
 
 // 👇 Tipo extendido con los datos del vendedor
 type ProductWithUser = ProductDto & {
@@ -29,26 +29,24 @@ export class ProductService {
   // ============================================================
   // Obtener datos de usuario desde el Auth Microservice
   // ============================================================
-private async getUserData(userId: string): Promise<{ name: string; phone: string }> {
-  const AUTH_URL = process.env.AUTH_SERVICE_URL || 'https://auth-microservice-tfql.onrender.com';
-  try {
-    const response = await axios.get(`${AUTH_URL}/api/auth/public/${userId}`);
-    const user = response.data.result;
+  private async getUserData(userId: string): Promise<{ name: string; phone: string }> {
+    const AUTH_URL = process.env.AUTH_SERVICE_URL || 'https://auth-microservice-tfql.onrender.com';
+    try {
+      const response = await axios.get(`${AUTH_URL}/api/auth/public/${userId}`);
+      const user = response.data.result;
 
-    return {
-      name: user.username,
-      phone: user.phoneNumber || 'No disponible',
-    };
-  } catch (error) {
-    console.warn(`⚠️ No se pudo obtener usuario ${userId}:`, error.message);
-    return { name: 'Desconocido', phone: 'No disponible' };
+      return {
+        name: user.username,
+        phone: user.phoneNumber || 'No disponible',
+      };
+    } catch (error) {
+      console.warn(`⚠️ No se pudo obtener usuario ${userId}:`, error.message);
+      return { name: 'Desconocido', phone: 'No disponible' };
+    }
   }
-}
-
-
 
   // ============================================================
-  // 🔹 GET ALL PRODUCTS
+  // 🔹 GET ALL PRODUCTS (SIN userId como antes)
   // ============================================================
   async getAllProducts(): Promise<ResponseDto<ProductWithUser[]>> {
     try {
@@ -68,7 +66,7 @@ private async getUserData(userId: string): Promise<{ name: string; phone: string
   }
 
   // ============================================================
-  // 🔹 GET BY USER ID
+  // 🔹 GET BY USER ID (SIN currentUserId como antes)
   // ============================================================
   async getProductsByUserId(userId: string): Promise<ResponseDto<ProductWithUser[]>> {
     try {
@@ -92,7 +90,7 @@ private async getUserData(userId: string): Promise<{ name: string; phone: string
   }
 
   // ============================================================
-  // 🔹 GET PRODUCT BY ID
+  // 🔹 GET PRODUCT BY ID (SIN userId como antes)
   // ============================================================
   async getProductById(id: string): Promise<ResponseDto<ProductWithUser>> {
     try {
@@ -133,18 +131,19 @@ private async getUserData(userId: string): Promise<{ name: string; phone: string
         imageUrl: 'https://placehold.co/600x400',
         imageLocalPath: '',
         userId: new Types.ObjectId(createProductDto.userId),
+        likesCount: 0,
+        dislikesCount: 0,
+        votes: [],
       };
 
       const savedProduct = await this.productModel.create(productData);
 
-if (file) {
-  const cloudinaryUrl = await uploadToCloudinary(file.path);
-
-  savedProduct.imageUrl = cloudinaryUrl; // ✅ ahora guarda la URL pública
-  savedProduct.imageLocalPath = ''; // opcional: ya no lo necesitas
-  await savedProduct.save();
-}
-
+      if (file) {
+        const cloudinaryUrl = await uploadToCloudinary(file.path);
+        savedProduct.imageUrl = cloudinaryUrl;
+        savedProduct.imageLocalPath = '';
+        await savedProduct.save();
+      }
 
       const dto = this.mapToProductDto(savedProduct);
       const userData = await this.getUserData(dto.userId);
@@ -180,12 +179,12 @@ if (file) {
       product.price = updateProductDto.price;
       product.description = updateProductDto.description || '';
       product.categoryName = updateProductDto.categoryName || '';
-if (file) {
-  const cloudinaryUrl = await uploadToCloudinary(file.path);
-  product.imageUrl = cloudinaryUrl; // ✅ URL de Cloudinary
-  product.imageLocalPath = '';      // limpiar ruta local
-}
 
+      if (file) {
+        const cloudinaryUrl = await uploadToCloudinary(file.path);
+        product.imageUrl = cloudinaryUrl;
+        product.imageLocalPath = '';
+      }
 
       const savedProduct = await product.save();
       const dto = this.mapToProductDto(savedProduct);
@@ -226,7 +225,119 @@ if (file) {
   }
 
   // ============================================================
-  // 🔹 MAP PRODUCT → DTO
+  // 🔥 VOTAR (CON SISTEMA BOOLEANO: true=like, false=dislike)
+  // ============================================================
+  async voteProduct(
+    productId: string,
+    voteProductDto: VoteProductDto,
+  ): Promise<ResponseDto<ProductWithUser>> {
+    try {
+      const product = await this.productModel.findById(productId).exec();
+      if (!product) {
+        throw new NotFoundException('Producto no encontrado');
+      }
+
+      const userId = new Types.ObjectId(voteProductDto.userId);
+      const isLike = voteProductDto.isLike; // true o false
+
+      // Buscar si el usuario ya votó
+      const existingVoteIndex = product.votes.findIndex(
+        (vote) => vote.userId.toString() === userId.toString(),
+      );
+
+      if (existingVoteIndex !== -1) {
+        // El usuario ya votó
+        const existingVote = product.votes[existingVoteIndex];
+
+        if (existingVote.isLike === isLike) {
+          // Si intenta votar lo mismo, remueve el voto (toggle)
+          if (existingVote.isLike) {
+            product.likesCount = Math.max(0, product.likesCount - 1);
+          } else {
+            product.dislikesCount = Math.max(0, product.dislikesCount - 1);
+          }
+          product.votes.splice(existingVoteIndex, 1);
+        } else {
+          // Cambiar de voto: quitar el anterior y agregar el nuevo
+          if (existingVote.isLike) {
+            product.likesCount = Math.max(0, product.likesCount - 1);
+            product.dislikesCount += 1;
+          } else {
+            product.dislikesCount = Math.max(0, product.dislikesCount - 1);
+            product.likesCount += 1;
+          }
+          product.votes[existingVoteIndex] = {
+            userId,
+            isLike: isLike,
+            votedAt: new Date(),
+          };
+        }
+      } else {
+        // Usuario nuevo votando
+        if (isLike) {
+          product.likesCount += 1;
+        } else {
+          product.dislikesCount += 1;
+        }
+        product.votes.push({
+          userId,
+          isLike: isLike,
+          votedAt: new Date(),
+        });
+      }
+
+      const savedProduct = await product.save();
+      const dto = this.mapToProductDto(savedProduct);
+      const userData = await this.getUserData(dto.userId);
+
+      return new ResponseDto<ProductWithUser>(
+        { ...dto, userName: userData.name, userPhone: userData.phone },
+        true,
+        'Voto registrado correctamente',
+      );
+    } catch (error) {
+      return new ResponseDto<ProductWithUser>(
+        undefined,
+        false,
+        error.message || 'Error al registrar el voto',
+      );
+    }
+  }
+
+  // ============================================================
+  // 🔥 OBTENER VOTO DEL USUARIO (retorna boolean o null)
+  // ============================================================
+  async getUserVote(
+    productId: string,
+    userId: string,
+  ): Promise<ResponseDto<{ isLike: boolean | null }>> {
+    try {
+      const product = await this.productModel.findById(productId).exec();
+      if (!product) {
+        throw new NotFoundException('Producto no encontrado');
+      }
+
+      const userObjectId = new Types.ObjectId(userId);
+      const userVote = product.votes.find(
+        (vote) => vote.userId.toString() === userObjectId.toString(),
+      );
+
+      return new ResponseDto<{ isLike: boolean | null }>(
+        { isLike: userVote ? userVote.isLike : null },
+        true,
+        '',
+      );
+    } catch (error) {
+      return new ResponseDto<{ isLike: boolean | null }>(
+        { isLike: null },
+        false,
+        error.message,
+      );
+    }
+  }
+
+  // ============================================================
+  // 🔹 MAP PRODUCT → DTO (simplificado sin userVote)
   // ============================================================
   private mapToProductDto(product: ProductDocument): ProductDto {
     const dto = new ProductDto();
@@ -238,6 +349,11 @@ if (file) {
     dto.imageUrl = product.imageUrl || '';
     dto.imageLocalPath = product.imageLocalPath || '';
     dto.userId = (product.userId as Types.ObjectId).toString();
+
+    // Agregar contadores de likes/dislikes
+    dto.likesCount = product.likesCount || 0;
+    dto.dislikesCount = product.dislikesCount || 0;
+
     return dto;
   }
 }

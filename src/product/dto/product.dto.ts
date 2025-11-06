@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNumber, IsOptional, Min, Max } from 'class-validator';
+import { IsString, IsNumber, IsOptional, Min, Max, IsBoolean } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class CreateProductDto {
@@ -32,7 +32,6 @@ export class CreateProductDto {
   @IsOptional()
   image?: any;
 
-  // Agregar userId (se obtendrá del token JWT)
   @ApiProperty({ description: 'ID del usuario que crea el producto' })
   @IsString()
   userId: string;
@@ -79,6 +78,20 @@ export class UpdateProductDto {
   imageLocalPath?: string;
 }
 
+// ========== DTO PARA VOTACIÓN (SIMPLIFICADO CON BOOLEAN) ==========
+export class VoteProductDto {
+  @ApiProperty({ 
+    description: 'Tipo de voto: true = like, false = dislike',
+    example: true
+  })
+  @IsBoolean()
+  isLike: boolean;
+
+  @ApiProperty({ description: 'ID del usuario que vota' })
+  @IsString()
+  userId: string;
+}
+
 export class ProductDto {
   @ApiProperty({ description: 'ID del producto' })
   productId: string;
@@ -104,14 +117,19 @@ export class ProductDto {
   @ApiProperty({ description: 'ID del usuario propietario' })
   userId: string;
 
-  // NUEVOS CAMPOS (para incluir datos del vendedor)
   @ApiPropertyOptional({ description: 'Nombre del usuario propietario' })
   userName?: string;
 
   @ApiPropertyOptional({ description: 'Teléfono del usuario propietario' })
   userPhone?: string;
-}
 
+  // ========== CAMPOS DE LIKES/DISLIKES ==========
+  @ApiProperty({ description: 'Cantidad de likes', default: 0 })
+  likesCount: number;
+
+  @ApiProperty({ description: 'Cantidad de dislikes', default: 0 })
+  dislikesCount: number;
+}
 
 export class ResponseDto<T = any> {
   @ApiProperty({ description: 'Resultado de la operación' })

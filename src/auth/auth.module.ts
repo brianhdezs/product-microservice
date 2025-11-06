@@ -10,10 +10,10 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
+      useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET') || 'Zr8qPf27XmL9AyVoKjN0REcTsdgW1uICBxvYQHpMnBkTJh5SwF4a6UZyXGE3LtvnaoCMk92DJw7pqsVxrYzA1gQKLnT3WeRUf',
         signOptions: {
-          expiresIn: configService.get<string>('JWT_EXPIRES_IN') || '1h',
+          expiresIn: configService.get('JWT_EXPIRES_IN') || '1h', // ✅ SIN <string>
           issuer: configService.get<string>('JWT_ISSUER') || 'dsicode-auth-api',
           audience: configService.get<string>('JWT_AUDIENCE') || 'dsicode-client',
         },

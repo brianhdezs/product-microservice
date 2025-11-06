@@ -28,6 +28,7 @@ import {
   UpdateProductDto,
   ProductDto,
   ResponseDto,
+  VoteProductDto,
 } from '../dto/product.dto';
 
 // === utilidades ===
@@ -38,7 +39,7 @@ const BadWords = require('bad-words');
 @ApiTags('Product')
 @Controller('api/product')
 export class ProductController {
-  constructor(private readonly productService: ProductService) { }
+  constructor(private readonly productService: ProductService) {}
 
   // =================== GET ===================
   @Get('GetAll')
@@ -243,7 +244,6 @@ export class ProductController {
     return await this.productService.updateProduct(id, cleanDto, file);
   }
 
-
   // =================== DELETE ===================
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar un producto' })
@@ -254,5 +254,37 @@ export class ProductController {
   })
   async delete(@Param('id') id: string): Promise<ResponseDto<string>> {
     return await this.productService.deleteProduct(id);
+  }
+
+  // =================== 🔥 ENDPOINTS: LIKES/DISLIKES ===================
+
+  @Post(':id/vote')
+  @ApiOperation({ summary: 'Votar en un producto (true=like, false=dislike)' })
+  @ApiParam({ name: 'id', description: 'ID del producto', type: 'string' })
+  @ApiResponse({
+    status: 200,
+    description: 'Voto registrado exitosamente',
+  })
+  @HttpCode(HttpStatus.OK)
+  async voteProduct(
+    @Param('id') productId: string,
+    @Body() voteProductDto: VoteProductDto,
+  ): Promise<ResponseDto<ProductDto>> {
+    return await this.productService.voteProduct(productId, voteProductDto);
+  }
+
+  @Get(':id/vote/:userId')
+  @ApiOperation({ summary: 'Obtener el voto de un usuario en un producto específico' })
+  @ApiParam({ name: 'id', description: 'ID del producto', type: 'string' })
+  @ApiParam({ name: 'userId', description: 'ID del usuario', type: 'string' })
+  @ApiResponse({
+    status: 200,
+    description: 'Voto del usuario obtenido exitosamente (true=like, false=dislike, null=sin voto)',
+  })
+  async getUserVote(
+    @Param('id') productId: string,
+    @Param('userId') userId: string,
+  ): Promise<ResponseDto<{ isLike: boolean | null }>> {
+    return await this.productService.getUserVote(productId, userId);
   }
 }
