@@ -24,7 +24,7 @@ type ProductWithUser = ProductDto & {
 export class ProductService {
   constructor(
     @InjectModel(Product.name) private readonly productModel: Model<ProductDocument>,
-  ) {}
+  ) { }
 
   // ============================================================
   // Obtener datos de usuario desde el Auth Microservice
@@ -138,7 +138,7 @@ export class ProductService {
 
       const savedProduct = await this.productModel.create(productData);
 
-    if (file) {
+      if (file) {
         // Subir a Cloudinary una sola vez
         const cloudinaryUrl = await uploadToCloudinary(file.path);
         savedProduct.imageUrl = cloudinaryUrl;
@@ -356,4 +356,28 @@ export class ProductService {
 
     return dto;
   }
+
+  async deleteAllProductsByUser(userId: string): Promise<ResponseDto> {
+    try {
+      const query = {
+        $or: [
+          { userId }, // por si se guarda como string
+          { userId: new Types.ObjectId(userId) } // por si se guarda como ObjectId
+        ]
+      };
+
+      const result = await this.productModel.deleteMany(query).exec();
+
+      const response = new ResponseDto();
+      response.isSuccess = true;
+      response.message = `Se eliminaron ${result.deletedCount} productos del usuario ${userId}.`;
+      return response;
+    } catch (error) {
+      const response = new ResponseDto();
+      response.isSuccess = false;
+      response.message = 'Error al eliminar productos: ' + error.message;
+      return response;
+    }
+  }
+
 }

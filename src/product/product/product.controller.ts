@@ -11,6 +11,8 @@ import {
   HttpCode,
   HttpStatus,
   BadRequestException,
+  UnauthorizedException,
+  Headers,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -42,6 +44,7 @@ export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
   // =================== GET ===================
+
   @Get('GetAll')
   @ApiOperation({ summary: 'Obtener todos los productos' })
   @ApiResponse({
@@ -72,13 +75,12 @@ export class ProductController {
     status: 200,
     description: 'Producto encontrado',
   })
-  async getById(
-    @Param('id') id: string,
-  ): Promise<ResponseDto<ProductDto>> {
+  async getById(@Param('id') id: string): Promise<ResponseDto<ProductDto>> {
     return await this.productService.getProductById(id);
   }
 
   // =================== POST ===================
+
   @Post()
   @UseInterceptors(
     FileInterceptor('image', {
@@ -125,14 +127,14 @@ export class ProductController {
   ): Promise<ResponseDto<ProductDto>> {
     const filter = new BadWords();
 
-    // Agregar palabras ofensivas en español
+    // Palabras ofensivas en español
     filter.addWords(
       'mierda', 'puta', 'puto', 'pendejo', 'pendeja', 'cabron', 'cabrón',
       'verga', 'chingar', 'chingada', 'idiota', 'imbecil', 'marica',
-      'culero', 'culera', 'estupido', 'estúpido', 'estupida', 'estúpida'
+      'culero', 'culera', 'estupido', 'estúpido', 'estupida', 'estúpida',
     );
 
-    // Normalizar a minúsculas antes de evaluar (por si viene en mayúsculas)
+    // Validar texto
     const name = (createProductDto.name || '').toLowerCase();
     const desc = (createProductDto.description || '').toLowerCase();
     const cat = (createProductDto.categoryName || '').toLowerCase();
@@ -143,14 +145,15 @@ export class ProductController {
       );
     }
 
-    // Validar imagen con Sightengine
+    // Validar imagen
     let imageUrl = '';
     if (file) {
       const isSafe = await validateImageContent(file.path);
       if (!isSafe) {
-        throw new BadRequestException('IMAGEN RECHAZADA: contiene contenido sensible o violento.');
+        throw new BadRequestException(
+          'IMAGEN RECHAZADA: contiene contenido sensible o violento.',
+        );
       }
-
       imageUrl = await uploadToCloudinary(file.path);
     }
 
@@ -162,6 +165,7 @@ export class ProductController {
   }
 
   // =================== PUT ===================
+
   @Put(':id')
   @UseInterceptors(
     FileInterceptor('image', {
@@ -207,12 +211,11 @@ export class ProductController {
     @Body() updateProductDto: UpdateProductDto,
     @UploadedFile() file?: Express.Multer.File,
   ): Promise<ResponseDto<ProductDto>> {
-    // 🧼 Validar lenguaje inapropiado
     const filter = new BadWords();
     filter.addWords(
       'mierda', 'puta', 'puto', 'pendejo', 'pendeja', 'cabron', 'cabrón',
       'verga', 'chingar', 'chingada', 'idiota', 'imbecil', 'marica',
-      'culero', 'culera', 'estupido', 'estúpido', 'estupida', 'estúpida'
+      'culero', 'culera', 'estupido', 'estúpido', 'estupida', 'estúpida',
     );
 
     const name = (updateProductDto.name || '').toLowerCase();
@@ -225,18 +228,18 @@ export class ProductController {
       );
     }
 
-    // 🖼️ Validar imagen con Sightengine si se sube una nueva
+    // Validar imagen si se sube una nueva
     let imageUrl = '';
     if (file) {
       const isSafe = await validateImageContent(file.path);
       if (!isSafe) {
-        throw new BadRequestException('Imagen rechazada: contiene contenido sensible.');
+        throw new BadRequestException(
+          'Imagen rechazada: contiene contenido sensible.',
+        );
       }
-
       imageUrl = await uploadToCloudinary(file.path);
     }
 
-    // 💾 Limpiar DTO y actualizar producto
     const cleanDto = { ...updateProductDto };
     if (imageUrl) cleanDto['imageUrl'] = imageUrl;
     delete cleanDto.image;
@@ -245,6 +248,7 @@ export class ProductController {
   }
 
   // =================== DELETE ===================
+
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar un producto' })
   @ApiParam({ name: 'id', description: 'ID del producto', type: 'string' })
@@ -274,17 +278,41 @@ export class ProductController {
   }
 
   @Get(':id/vote/:userId')
-  @ApiOperation({ summary: 'Obtener el voto de un usuario en un producto específico' })
+  @ApiOperation({
+    summary: 'Obtener el voto de un usuario en un producto específico',
+  })
   @ApiParam({ name: 'id', description: 'ID del producto', type: 'string' })
   @ApiParam({ name: 'userId', description: 'ID del usuario', type: 'string' })
   @ApiResponse({
     status: 200,
-    description: 'Voto del usuario obtenido exitosamente (true=like, false=dislike, null=sin voto)',
+    description:
+      'Voto del usuario obtenido exitosamente (true=like, false=dislike, null=sin voto)',
   })
   async getUserVote(
     @Param('id') productId: string,
     @Param('userId') userId: string,
   ): Promise<ResponseDto<{ isLike: boolean | null }>> {
     return await this.productService.getUserVote(productId, userId);
+  }
+
+  // =================== INTERNAL DELETE (AUTH) ===================
+
+  @Delete('internal/users/:userId/products')
+  @ApiOperation({
+    summary: '[INTERNAL] Eliminar todos los productos de un usuario',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Productos del usuario eliminados exitosamente',
+  })
+  async deleteAllProductsByUser(
+    @Param('userId') userId: string,
+    @Headers('x-internal-token') internalToken: string,
+  ): Promise<ResponseDto> {
+    if (internalToken !== process.env.INTERNAL_SHARED_TOKEN) {
+      throw new UnauthorizedException('Token interno inválido');
+    }
+
+    return await this.productService.deleteAllProductsByUser(userId);
   }
 }
