@@ -41,7 +41,7 @@ const BadWords = require('bad-words');
 @ApiTags('Product')
 @Controller('api/product')
 export class ProductController {
-  constructor(private readonly productService: ProductService) {}
+  constructor(private readonly productService: ProductService) { }
 
   // =================== GET ===================
 
@@ -129,10 +129,32 @@ export class ProductController {
 
     // Palabras ofensivas en español
     filter.addWords(
-      'mierda', 'puta', 'puto', 'pendejo', 'pendeja', 'cabron', 'cabrón',
-      'verga', 'chingar', 'chingada', 'idiota', 'imbecil', 'marica',
-      'culero', 'culera', 'estupido', 'estúpido', 'estupida', 'estúpida',
+      'mierda', 'puta', 'puto', 'pendejo', 'pendeja', 'cabron', 'cabrón', 'verga',
+      'vergota', 'vergazo', 'pito', 'pene', 'chinga', 'chingar', 'chingada', 'chingadera',
+      'chingadazo', 'idiota', 'imbecil', 'imbécil', 'marica', 'maricón', 'maricona',
+      'joto', 'jota', 'culero', 'culera', 'estupido', 'estúpido', 'estupida', 'estúpida',
+      'zorra', 'perra', 'perro', 'bastardo', 'bastarda', 'coño', 'hostia', 'chingón',
+      'chingona', 'coger', 'cogida', 'cogido', 'cogida', 'mamar', 'mamón', 'mamona',
+      'putazo', 'putaza', 'culazo', 'nalgona', 'nalgón', 'pechos', 'tetas', 'tetona',
+      'tetón', 'chingatumadre', 'chingadamadre', 'pendejada', 'mamadas', 'mamada',
+      'pinche', 'pinches', 'pinchi', 'pinchis', 'cabrona', 'cabronazo', 'verguero',
+      'verguita', 'vergudito', 'pedo', 'pedote', 'pedota', 'menso', 'mensito', 'mensote',
+      'tarado', 'tarada', 'taradito', 'taradita', 'baboso', 'babosa', 'babosada',
+      'chupapitos', 'chupapene', 'chupaverga', 'tragaleche', 'tragasable', 'tragapito',
+      'culero', 'ojete', 'ojetazo', 'ojetote', 'panocha', 'chocha', 'chichi', 'chichis',
+      'chingaderita', 'chacala', 'chacal', 'putilla', 'putito', 'putín', 'carnalón',
+      'huevón', 'huevona', 'webon', 'wevon', 'huevotes', 'huevitos', 'chingaderota',
+      'cagada', 'cagar', 'cagón', 'cagona', 'mevalemadre', 'valemadre', 'valeverga',
+      'pinchevieja', 'pinchevato', 'zopenco', 'zopenca', 'metrosexual', 'apendejado',
+      'apendejada', 'pendejote', 'pendejota', 'tarugo', 'taruga', 'tontito', 'tontita',
+      'idiotota', 'cojudo', 'cojuda', 'jodido', 'jodida', 'jodete', 'mamapito',
+      'mamaverga', 'chupaculo', 'trasero', 'culo', 'culito', 'culote', 'chinguitito',
+      'chingaderita', 'chingaderota', 'naco', 'naca', 'nacote', 'nacota', 'putón',
+      'putaza', 'sopla', 'soplapollas', 'maldito', 'maldita', 'pinchazo', 'zángano',
+      'zangana', 'cornudo', 'cornuda', 'arrastrado', 'arrastrada', 'pervertido',
+      'pervertida', 'asqueroso', 'asquerosa'
     );
+
 
     // Validar texto
     const name = (createProductDto.name || '').toLowerCase();
@@ -213,10 +235,32 @@ export class ProductController {
   ): Promise<ResponseDto<ProductDto>> {
     const filter = new BadWords();
     filter.addWords(
-      'mierda', 'puta', 'puto', 'pendejo', 'pendeja', 'cabron', 'cabrón',
-      'verga', 'chingar', 'chingada', 'idiota', 'imbecil', 'marica',
-      'culero', 'culera', 'estupido', 'estúpido', 'estupida', 'estúpida',
+      'mierda', 'puta', 'puto', 'pendejo', 'pendeja', 'cabron', 'cabrón', 'verga',
+      'vergota', 'vergazo', 'pito', 'pene', 'chinga', 'chingar', 'chingada', 'chingadera',
+      'chingadazo', 'idiota', 'imbecil', 'imbécil', 'marica', 'maricón', 'maricona',
+      'joto', 'jota', 'culero', 'culera', 'estupido', 'estúpido', 'estupida', 'estúpida',
+      'zorra', 'perra', 'perro', 'bastardo', 'bastarda', 'coño', 'hostia', 'chingón',
+      'chingona', 'coger', 'cogida', 'cogido', 'cogida', 'mamar', 'mamón', 'mamona',
+      'putazo', 'putaza', 'culazo', 'nalgona', 'nalgón', 'pechos', 'tetas', 'tetona',
+      'tetón', 'chingatumadre', 'chingadamadre', 'pendejada', 'mamadas', 'mamada',
+      'pinche', 'pinches', 'pinchi', 'pinchis', 'cabrona', 'cabronazo', 'verguero',
+      'verguita', 'vergudito', 'pedo', 'pedote', 'pedota', 'menso', 'mensito', 'mensote',
+      'tarado', 'tarada', 'taradito', 'taradita', 'baboso', 'babosa', 'babosada',
+      'chupapitos', 'chupapene', 'chupaverga', 'tragaleche', 'tragasable', 'tragapito',
+      'culero', 'ojete', 'ojetazo', 'ojetote', 'panocha', 'chocha', 'chichi', 'chichis',
+      'chingaderita', 'chacala', 'chacal', 'putilla', 'putito', 'putín', 'carnalón',
+      'huevón', 'huevona', 'webon', 'wevon', 'huevotes', 'huevitos', 'chingaderota',
+      'cagada', 'cagar', 'cagón', 'cagona', 'mevalemadre', 'valemadre', 'valeverga',
+      'pinchevieja', 'pinchevato', 'zopenco', 'zopenca', 'metrosexual', 'apendejado',
+      'apendejada', 'pendejote', 'pendejota', 'tarugo', 'taruga', 'tontito', 'tontita',
+      'idiotota', 'cojudo', 'cojuda', 'jodido', 'jodida', 'jodete', 'mamapito',
+      'mamaverga', 'chupaculo', 'trasero', 'culo', 'culito', 'culote', 'chinguitito',
+      'chingaderita', 'chingaderota', 'naco', 'naca', 'nacote', 'nacota', 'putón',
+      'putaza', 'sopla', 'soplapollas', 'maldito', 'maldita', 'pinchazo', 'zángano',
+      'zangana', 'cornudo', 'cornuda', 'arrastrado', 'arrastrada', 'pervertido',
+      'pervertida', 'asqueroso', 'asquerosa'
     );
+
 
     const name = (updateProductDto.name || '').toLowerCase();
     const desc = (updateProductDto.description || '').toLowerCase();
@@ -260,7 +304,7 @@ export class ProductController {
     return await this.productService.deleteProduct(id);
   }
 
-  // =================== 🔥 ENDPOINTS: LIKES/DISLIKES ===================
+  // =================== ENDPOINTS: LIKES/DISLIKES ===================
 
   @Post(':id/vote')
   @ApiOperation({ summary: 'Votar en un producto (true=like, false=dislike)' })

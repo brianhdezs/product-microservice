@@ -34,7 +34,7 @@ export async function validateImageContent(filePath: string): Promise<boolean> {
     const violence = data.violence?.prob || 0;
     const gore = data.gore?.prob || 0;
 
-    // 🚫 umbral más estricto: 0.2 (20%)
+    // umbral más estricto: 0.2 (20%)
     const isUnsafe =
       nudity > 0.5 ||
       sexualDisplay > 0.5 ||

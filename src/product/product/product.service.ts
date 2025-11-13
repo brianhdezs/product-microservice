@@ -14,7 +14,7 @@ import {
 } from '../dto/product.dto';
 import { uploadToCloudinary } from '../utils/cloudinary.util';
 
-// 👇 Tipo extendido con los datos del vendedor
+// Tipo extendido con los datos del vendedor
 type ProductWithUser = ProductDto & {
   userName: string;
   userPhone: string;
@@ -32,21 +32,21 @@ export class ProductService {
   private async getUserData(userId: string): Promise<{ name: string; phone: string }> {
     const AUTH_URL = process.env.AUTH_SERVICE_URL || 'https://auth-microservice-tfql.onrender.com';
     try {
-      const response = await axios.get(`${AUTH_URL}/api/auth/public/${userId}`);
+    const response = await axios.get(`${AUTH_URL}/api/auth/public/${userId}`);
       const user = response.data.result;
 
       return {
-        name: user.username,
+        name: user.name,
         phone: user.phoneNumber || 'No disponible',
       };
     } catch (error) {
-      console.warn(`⚠️ No se pudo obtener usuario ${userId}:`, error.message);
+      console.warn(` No se pudo obtener usuario ${userId}:`, error.message);
       return { name: 'Desconocido', phone: 'No disponible' };
     }
   }
 
   // ============================================================
-  // 🔹 GET ALL PRODUCTS (SIN userId como antes)
+  // GET ALL PRODUCTS (SIN userId como antes)
   // ============================================================
   async getAllProducts(): Promise<ResponseDto<ProductWithUser[]>> {
     try {
@@ -66,7 +66,7 @@ export class ProductService {
   }
 
   // ============================================================
-  // 🔹 GET BY USER ID (SIN currentUserId como antes)
+  // GET BY USER ID (SIN currentUserId como antes)
   // ============================================================
   async getProductsByUserId(userId: string): Promise<ResponseDto<ProductWithUser[]>> {
     try {
@@ -90,7 +90,7 @@ export class ProductService {
   }
 
   // ============================================================
-  // 🔹 GET PRODUCT BY ID (SIN userId como antes)
+  // GET PRODUCT BY ID (SIN userId como antes)
   // ============================================================
   async getProductById(id: string): Promise<ResponseDto<ProductWithUser>> {
     try {
@@ -116,7 +116,7 @@ export class ProductService {
   }
 
   // ============================================================
-  // 🔹 CREATE PRODUCT
+  // CREATE PRODUCT
   // ============================================================
   async createProduct(
     createProductDto: CreateProductDto,
@@ -159,7 +159,7 @@ export class ProductService {
   }
 
   // ============================================================
-  // 🔹 UPDATE PRODUCT
+  // UPDATE PRODUCT
   // ============================================================
   async updateProduct(
     id: string,
@@ -201,7 +201,7 @@ export class ProductService {
   }
 
   // ============================================================
-  // 🔹 DELETE PRODUCT
+  // DELETE PRODUCT
   // ============================================================
   async deleteProduct(id: string): Promise<ResponseDto<string>> {
     try {
@@ -225,7 +225,7 @@ export class ProductService {
   }
 
   // ============================================================
-  // 🔥 VOTAR (CON SISTEMA BOOLEANO: true=like, false=dislike)
+  // VOTAR (CON SISTEMA BOOLEANO: true=like, false=dislike)
   // ============================================================
   async voteProduct(
     productId: string,
@@ -305,7 +305,7 @@ export class ProductService {
   }
 
   // ============================================================
-  // 🔥 OBTENER VOTO DEL USUARIO (retorna boolean o null)
+  // OBTENER VOTO DEL USUARIO (retorna boolean o null)
   // ============================================================
   async getUserVote(
     productId: string,
@@ -337,7 +337,7 @@ export class ProductService {
   }
 
   // ============================================================
-  // 🔹 MAP PRODUCT → DTO (simplificado sin userVote)
+  // MAP PRODUCT → DTO (simplificado sin userVote)
   // ============================================================
   private mapToProductDto(product: ProductDocument): ProductDto {
     const dto = new ProductDto();
